@@ -10,12 +10,12 @@ Python implement for computations of the legacy GabRat and GabRat-R/GabRat-RR
 
 - numpy
 - cv2 (OpenCV for Python)
-- screeninfo (optional, used in imagehelper.py)
+- screeninfo (optional, used in `imagehelper.py`)
 
 ## This repository contains
 * gabrat.py
 
-  The main python module for GabRat computations. You can import this module in your python code and call either of compute_gabrat() or compute_gabrat_rr(), as follows:
+  The main python module for GabRat computations. You can import this module in your python code and call either of `compute_gabrat()` or `compute_gabrat_rr()`, as follows:
   ```python
   import gabrat as gb # be sure that gabrat.py exists in your project directory
   mean_gabrat, points, ratios = gb.compute_gabrat_rr(
@@ -36,7 +36,7 @@ Python implement for computations of the legacy GabRat and GabRat-R/GabRat-RR
   A helper module for the graphical output of AIIRR process.
 * run_gabrat.py
   
-  A sample code to use gabrat module.
+  A sample code to use `gabrat` module.
 * 01.jpg
   
   A sample image.
