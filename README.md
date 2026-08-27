@@ -18,7 +18,7 @@ Python implement for computations of the legacy GabRat and GabRat-R/GabRat-RR
   The main python module for GabRat computations. You can import this module in your python code and call either of compute_gabrat() or compute_gabrat_rr(), as follows:
   ```python
   import gabrat as gb # be sure that gabrat.py exists in your project directory
-  gb.compute_gabrat_rr(
+  mean_gabrat, points, ratios = gb.compute_gabrat_rr(
     fg_file="01.jpg",
     fm_file="01.png",
     bg_file="bg.jpg",
@@ -28,6 +28,8 @@ Python implement for computations of the legacy GabRat and GabRat-R/GabRat-RR
     gabratr_iterations=10,
     sigma=6.0,
   )
+  print(f"Num of points : {len(points)}")
+  print(f"Mean GabRat   : {mean_gabrat:.4f}")
   '''
 * imagehelper.py
   
