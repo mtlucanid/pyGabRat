@@ -45,7 +45,7 @@ def main():
     ih.imshow(final_img, 5000)
     
     # Gabrat-RR
-    gb.compute_gabrat_rr(
+    mean_gabrat, points, ratios = gb.compute_gabrat_rr(
         fg_file="01.jpg",
         fm_file="01.png",
         bg_file="bg.jpg",
@@ -55,6 +55,8 @@ def main():
         gabratr_iterations=50,
         sigma=6.0,
     )
+    print(f"Num of points : {len(points)}")
+    print(f"Mean GabRat   : {mean_gabrat:.4f}")
 
 #####################################
 # Show a part (10 x 10) of 01.jpg
