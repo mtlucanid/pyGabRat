@@ -46,3 +46,11 @@ Python implement for computations of the legacy GabRat and GabRat-R/GabRat-RR
 * bg.jpg
 
   A sample background image.
+  
+## See also
+* Original publication of GabRat-R
+
+  https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0300238
+* GitHub repository for GabRat-R program (for Windows)
+
+  https://github.com/mtlucanid/GabRat-R/
