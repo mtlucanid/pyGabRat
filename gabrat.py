@@ -5,8 +5,8 @@
 #
 #   Copyright(C) 2026, Masahiko TANAHASHI
 #
-#   Last modified: 26 Aug 2026
-#   First published: xx xx 2026
+#   Last modified: 16 Oct 2026
+#   First published: 16 Aug 2026
 #
 #   E-mail: m.tanahashi.lucanid@gmail.com
 #
@@ -28,27 +28,28 @@
 # ------------------------------------------------------------------------
 #
 # The latest version of this file will be avairable from GitHub repository of the author:
-#  https://github.com/mtlucanid/GabRat_python
+#  https://github.com/mtlucanid/pyGabRat
 #
 # Before use, please install Python libraries from the command shell:
 #  $ pip install numpy opencv-python screeninfo
 #
-# Example Usage (see also 'run_aiirr.py'):
-# [Create 'YOUR_PYTHON_FILE.py' under the same path of 'aiirr.py' and type the following code]
+# Example Usage (see also 'run_gabrat.py'):
+# [Create 'YOUR_PYTHON_FILE.py' under the same path of 'gabrat.py' and type the following code]
 #
 #   import gabrat as gb
-#   gb.compute_gabrat_rr(
+#   mean_gabrat, points, ratios = gb.compute_gabrat_rr(
 #       fg_file="01.jpg",
 #       fm_file="01.png",
 #       bg_file="bg.jpg",
-#       bm_file=None, # "bg.png"
-#       target_scale=1.0,
+#       bm_file=None,  # or use "bg.png" (binary mask image)
+#       target_scale=0.3,
 #       gabratrr_iterations=50,
+#       gabratr_iterations=50,
 #       sigma=6.0,
 #   )
-#
-#   print(f"Mean Area Integrity Index (AII): {results['mean_aii']:.4f}")
-#   print(f"Average Regions: {results['mean_nregions']:.1f}")
+#   print(f"Num of points : {len(points)}")
+#   print(f"Mean GabRat   : {mean_gabrat:.4f}")
+
 #
 # For the details of GabRat/GabRat-R/GabRat-RR, please refer to our original papers:
 #  Tanahashi M, Lin M-C, Lin C-P (2025). An overview of GabRat edge disruption and its new 
@@ -56,8 +57,8 @@
 #     randomization technique. PLoS One, 20(7), e0300238.
 #     https://doi.org/10.1371/journal.pone.0300238
 #
-#  Tanahashi M, Huang J-P (2026). pyAIIRR: A Python program for Area Integration Index with
-#     Random Rearrangement (AIIRR). To be submitted to XXX.
+#  Tanahashi M, Huang J-P. pyAIIRR: A Python program for Area Integration Index with
+#     Random Rearrangement (AIIRR). To be submitted.
 
 import cv2
 import math
@@ -130,11 +131,11 @@ def compute_gabrat(
         random_seed (int):
             Random seed.
     Returns:
-        float: 
+        (referred to as 'mean_gabrat') (float): 
             A single GabRat value, which represents the mean of Eort / (Epar + Eort) among the edge points.
-        numpy.ndarray:
+        (referred to as 'points') (numpy.ndarray):
             2D numpy array of the edge points: shape(N, 2), dtype=int, where N is the number of edge points.
-        numpy.ndarray:
+        (referred to as 'ratios') (numpy.ndarray):
             2D numpy array of the GabRat values: shape(M, N), dtype=float, where M is the number of bootstrap
             iterations and N is the number of edge points. To get mean GabRat values along with edge pixels, 
             use: vals_for_pixel = np.mean(ratios, axis=0)
@@ -784,7 +785,20 @@ def safe_devide(a, b, rtol=1e-05, atol=1e-08):
     return np.divide(a, b, out=np.zeros_like(a, dtype=float), where=is_not_zero)
 
 
-###################################
-## Entry poiny of this module
+##################################################
+## Message when user directlu run this module
 if __name__ == '__main__':
-    pass
+    input(
+        "\n"
+        "------------------------------------------------------\n"
+        " gabrat.py                                            \n"
+        "                                                      \n"
+        "  Python imprementation for GabRat/GabRat-R/GabRat-RR \n"
+        "                                                      \n"
+        "      Copyright (C) 2026, Masahiko Tanahashi          \n"
+        "                                                      \n"
+        "       PLEASE DO NOT DIRECTLY RUN THIS FILE!          \n"
+        "       (see the Example Usage in this file)           \n"
+        "------------------------------------------------------\n"
+        "Hit any key"
+    )
