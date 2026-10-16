@@ -12,6 +12,11 @@ Python implement for computations of the legacy GabRat and GabRat-R/GabRat-RR
 - cv2 (OpenCV for Python)
 - screeninfo (optional, used in `imagehelper.py`)
 
+For installation of those packages, please run the following command on your terminal (for debian or ubuntu):
+```console
+$ pip install numpy opencv-python screeninfo
+```
+
 ## This repository contains
 * gabrat.py
 
@@ -30,7 +35,7 @@ Python implement for computations of the legacy GabRat and GabRat-R/GabRat-RR
   )
   print(f"Num of points : {len(points)}")
   print(f"Mean GabRat   : {mean_gabrat:.4f}")
-  '''
+  ```
 * imagehelper.py
   
   A helper module for the graphical output of AIIRR process.
