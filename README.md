@@ -25,7 +25,9 @@ $ pip install numpy opencv-python screeninfo tifffile imagecodecs
   The main python module for GabRat computations. You can import this module in your python code and call either of `compute_gabrat()` or `compute_gabrat_rr()`, as follows:
   ```python
   import gabrat as gb # be sure that gabrat.py exists in your project directory
+
   gb.IMG_DATATYPE = np.uint8 # internal precision for computation (using uint8 is fastest, uint16 can also be specified)
+
   mean_gabrat, points, ratios = gb.compute_gabrat_rr(
     fg_file="01.jpg", # foreground image
     fm_file="01.png", # foreground mask 
@@ -40,7 +42,7 @@ $ pip install numpy opencv-python screeninfo tifffile imagecodecs
     animation=True,
     animation_wait=10, 
   )
-  print(f"Precision     : {gb.IMG_DATATYPE.__name__}")
+
   print(f"Num of points : {len(points)}")
   print(f"Mean GabRat   : {mean_gabrat:.4f}")
   ```
