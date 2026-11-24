@@ -2,6 +2,9 @@
 
 Python implement for computations of the legacy GabRat and GabRat-R/GabRat-RR
 
+## What's new?
+As of the version dated 2026/11/24, pyGabRat supports 16-bit (uint16) TIFF files, as well as 16/32/64-bit (float16/32/64) TIFFs as input.
+
 ## Requirements
 
 - Python 3.4+
