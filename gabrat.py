@@ -5,12 +5,12 @@
 #
 #   Copyright(C) 2026, Masahiko TANAHASHI
 #
-#   Last modified: 16 Oct 2026
-#   First published: 16 Aug 2026
+#   Last modified: 24 Nov 2026
+#   First release: 16 Aug 2026
 #
 #   E-mail: m.tanahashi.lucanid@gmail.com
 #
-# ------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://gnu.org>.
 #
-# ------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # The latest version of this file will be avairable from GitHub repository of the author:
 #  https://github.com/mtlucanid/pyGabRat
@@ -41,24 +41,38 @@
 #       fg_file="01.jpg",
 #       fm_file="01.png",
 #       bg_file="bg.jpg",
-#       bm_file=None,  # or use "bg.png" (binary mask image)
+#       bm_file="bg.png",
 #       target_scale=0.3,
 #       gabratrr_iterations=50,
 #       gabratr_iterations=50,
 #       sigma=6.0,
+#       placement_angle_min=-10,
+#       placement_angle_min=10,
 #   )
 #   print(f"Num of points : {len(points)}")
 #   print(f"Mean GabRat   : {mean_gabrat:.4f}")
-
+#
+# -----------------------------------------------------------------------------
 #
 # For the details of GabRat/GabRat-R/GabRat-RR, please refer to our original papers:
-#  Tanahashi M, Lin M-C, Lin C-P (2025). An overview of GabRat edge disruption and its new 
-#     extensions for unbiased quantification of disruptive camouflaging patterns using
-#     randomization technique. PLoS One, 20(7), e0300238.
-#     https://doi.org/10.1371/journal.pone.0300238
 #
-#  Tanahashi M, Huang J-P. pyAIIRR: A Python program for Area Integration Index with
-#     Random Rearrangement (AIIRR). To be submitted.
+#   Tanahashi M, Lin M-C, Lin C-P (2025). An overview of GabRat edge disruption and its new 
+#      extensions for unbiased quantification of disruptive camouflaging patterns using
+#      randomization technique. PLoS One, 20(7), e0300238.
+#      https://doi.org/10.1371/journal.pone.0300238
+#
+#   Tanahashi M, Huang J-P (2026). pyGabRat and pyAIIRR: Python implements for the 
+#      quantification of disruptive camouflage patterns To be submitted to Bioinfomatics.
+#
+# -----------------------------------------------------------------------------
+#
+# Version History:
+#
+# 2026/08/16: First deposited version on GitHub.
+# 2026/11/12: Parameters of placement_angle_min and placement_angle_max were added to
+#             compute_gabrat_rr() function.  
+# 2026/11/24: Image data type of uint16, float32, and float64 are now avairable.
+#
 
 import cv2
 import math
@@ -78,9 +92,14 @@ import imagehelper as ih
 
 
 ########################################################################
-# Constants
-MASK_THRESHOLD = 127
+# Precisions for the internal calculations (please change IMG_DATATYPE)
+IMG_DATATYPE = np.uint16 # You can use [uint8/16, float32/64] for GabRat/GabRat-R and [uint8/16] for GabRat-RR
+MASK_DATATYPE = np.uint8 # DO NOT CHANGE!!!
 
+# Automatically generated constants (do not change)
+IMG_DATA_MAX = np.iinfo(IMG_DATATYPE).max if np.issubdtype(IMG_DATATYPE, np.integer) else 1.0 # 255 for uint8 and 1.0 for float32
+MASK_DATA_MAX = np.iinfo(MASK_DATATYPE).max # 255 for uint8
+MASK_THRESHOLD = np.dtype(MASK_DATATYPE).type(MASK_DATA_MAX / 2) # Half of the max value, casting to the target type
 
 ########################################################################
 # Compute GabRat/GabRat-R from a composite gray image and a mask
@@ -101,11 +120,15 @@ def compute_gabrat(
     """Calculate the GabRat edge disruption along a binary mask contour.
     Arguments:
         img (2D numpy array): 
-            A 8-bit (np.uint8) color/grayscale image that contains a target object (e.g. an insect). 
-            When a color image is passed, it will be internally converted to a grayscale image.
+            A grayscale/color image that contains a target object (e.g. an insect). When a color image 
+            is passed, it will be internally converted to a grayscale image using the ITU-R BT.601 
+            luma formula (Gray = 0.299 * R + 0.587 * G + 0.114 * B). The bit depth can be one of the 
+            following types: np.uint8 (so called '24-bit color' or '8-bit grayscale'), uint16, uint32, 
+            float16, and float32. The program internally convert any image types to the fixed bit depth
+            that the IMG_DATATYPE constant specifies (see the top of this script file).              
         mask (2D numpy array):
             A 8-bit (np.uint8) binary mask where foreground=255, background=0. This is used to determine
-            the object outline in the foregroung image. When a color image. When a color image is passed, 
+            the object outline in the foreground image. When a color image. When a color image is passed, 
             it will be internally converted to a grayscale image.
         points (2D numpy array):
             An array of integer (x, y) coordinates. points[i, 0] indicates x coordinate of i-th 
@@ -117,7 +140,8 @@ def compute_gabrat(
         n_angles (int):
             Number of Gabor filters with different angles. The step angle will be PI / n_angles.
         base_angle (float):
-            Use this base angle when gabratr_iterations is set to None (i.e. computing original GabRat).
+            Use this base angle in degree unit (0 - 360) when gabratr_iterations is set to None 
+            (i.e. gabratr_iterations = None and base_angle = 0 will compute legacy GabRat). 
             This parameter is ignored in GabRat-R computation, as it uses randomly generated base angle.
         sigma (float):
             Standard deviation of the Gaussian envelope. The size (width and height) of 
@@ -127,7 +151,7 @@ def compute_gabrat(
             the wavelength of the sinusoidal factor.
         gabratr_iterations (int):
             GabRat-R bootstrap iterations (number of Gabor filter sets with random angles). Set this to
-            None forces the program compute the original (legacy) GabRat with fixed filter sets.
+            None forces the program compute the legacy GabRat with fixed filter sets.
         random_seed (int):
             Random seed.
     Returns:
@@ -145,11 +169,11 @@ def compute_gabrat(
         random.seed(random_seed)
 
     # Load images in grayscale
-    img = read_image(img_file, img, cv2.IMREAD_GRAYSCALE)
-    mask = read_image(mask_file, mask, cv2.IMREAD_GRAYSCALE)
+    img = ih.read_image(img_file, img, gray=True, dtype=IMG_DATATYPE)
+    mask = ih.read_image(mask_file, mask, gray=True, dtype=MASK_DATATYPE)
 
     # cv2.threshold() returns a numpy array of the same type of input array   
-    _, mask = cv2.threshold(mask, MASK_THRESHOLD, 255, cv2.THRESH_BINARY)
+    _, mask = cv2.threshold(mask, MASK_THRESHOLD, MASK_DATA_MAX, cv2.THRESH_BINARY)
     
     # Check the image types
     if len(img.shape) != 2 or len(mask.shape) != 2:
@@ -157,6 +181,7 @@ def compute_gabrat(
     
     # Edge points
     if points is None:
+        
         # Identify edge pixels of the target object using contour extraction
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         if not contours:
@@ -234,15 +259,18 @@ def compute_gabrat(
     for it in range(0, niter):
         
         # Randomely modify the base_angle when GabRat-R is enabled
+        # [Cautition] the angle parameter of create_gabor_kernels() uses RADIAN unit
         if gabratr_iterations:
-            base_angle = random.random() * math.pi # GabRat-R
+            # GabRat-R
+            base_angle_r = random.random() * math.pi
         else:
-            pass # Original GabRat : directly use the value specified by the argument
+            # Fixed base angle
+            base_angle_r = base_angle * math.pi / 180
     
         # kernels: shape(n_angles, k, k) -> shape(n_angles, K)
         kernels = create_gabor_kernels(
             n_angles=n_angles,
-            base_angle=base_angle,
+            base_angle_r=base_angle_r,
             sigma=sigma,
             frequency=frequency,
         )
@@ -286,6 +314,8 @@ def compute_gabrat_rr(
     bm_file : str = None,
     target_scale : float = 1.0,
     gabratrr_iterations = 1000,
+    placement_angle_min = None,
+    placement_angle_max = None,
     n_angles : int = 4,
     base_angle : float = 0.0,
     sigma : float = 4.0,
@@ -298,15 +328,19 @@ def compute_gabrat_rr(
     """Calculate GabRat-RR.
     Arguments:
         fg (2D numpy array): 
-            A 8-bit (np.uint8) color/grayscale image that contains a target object (e.g. an insect). 
-            When a color image is passed, it will be internally converted to a grayscale image.
+            A grayscale/color image that contains a target object (e.g. an insect). When a color image 
+            is passed, it will be internally converted to a grayscale image using the ITU-R BT.601 
+            luma formula (Gray = 0.299 * R + 0.587 * G + 0.114 * B). The bit depth can be one of the 
+            following types: np.uint8 (so called '24-bit color' or '8-bit grayscale'), uint16, uint32, 
+            float16, and float32. The program internally convert any image types to the fixed bit depth
+            that the IMG_DATATYPE constant specifies (see the top of this script file).              
         fm (2D numpy array):
             A 8-bit (np.uint8) binary mask where foreground=255, background=0. This is used to determine
-            the object outline in the foregroung image. When a color image. When a color image is passed, 
+            the object outline in the foreground image. When a color image. When a color image is passed, 
             it will be internally converted to a grayscale image.
         bg (2D numpy array): 
-            A 8-bit (np.uint8) color/grayscale image for background (e.g. forest floor). 
-            When a color image is passed, it will be internally converted to a grayscale image.
+            A grayscale/color image for background (e.g. forest floor). When a color image is passed, 
+            it will be internally converted to a grayscale image. See also the explanation for 'fg'.
         bm (2D numpy array):
             A 8-bit (np.uint8) binary mask where foreground=255, background=0. This is used to determine
             the possible regions on the background where the center of the foreground object can be placed.
@@ -320,13 +354,26 @@ def compute_gabrat_rr(
         bm_file (string):
             A file path to the background mask file (used when bm is None).
         target_scale (float): 
-            The resizing scale to place the foreground onject onto the background.
+            The resizing scale to place the foreground object onto the background.
         gabratrr_iterations (int):
             The bootstrap iterations (number of relocations) of GabRat-RR.
+        placement_angle_min (float):
+        placement_angle_max (float):
+            When placing a foreground object onto a background, its rotation angle is 
+            constrained to a range specified by `placement_angle_min` and `placement_angle_max` 
+            in degree unit (°). The zero-angle direction corresponds to the right side of the image, 
+            and the angle increases in a clockwise direction. For example, suppose the head of 
+            a fish specimen in the foreground image is facing to the right (= zero direction).
+            In this case, by setting _min = 240 and _max = 300, the orientation of the head is 
+            restricted to an upward direction when placed against a background. Similarly, by setting
+            _min = -10 and _max = 10, it is possible to limit the head angle AS IT IS in the foreground 
+            image, while still allowing for slight variations. Setting both _min and _max to None causes 
+            the program to generate a completely random rotation angle (from 0° to 360°).
         n_angles (int):
             Number of Gabor filters with different angles. The step angle will be PI / n_angles.
         base_angle (float):
-            Use this base angle when gabratr_iterations is set to None (i.e. computing original GabRat).
+            Use this base angle in degree unit (0 - 360) when gabratr_iterations is set to None 
+            (i.e. gabratr_iterations = None and base_angle = 0 will compute legacy GabRat). 
             This parameter is ignored in GabRat-R computation, as it uses randomly generated base angle.
         sigma (float):
             Standard deviation of the Gaussian envelope. The size (width and height) of 
@@ -340,6 +387,10 @@ def compute_gabrat_rr(
             setting this this to None forces to compute legacy GabRat using the base_angle parameter. 
         random_seed (int):
             Random seed.
+        animation (bool):
+            Show or hide GabRat-RR animation.
+        animation_wait (int): 
+            Wait time for each frame of the animation (in milisecond).            
     Returns:
         float: 
             A single GabRat value, which represents the mean of Eort / (Epar + Eort) among the edge points.
@@ -351,22 +402,38 @@ def compute_gabrat_rr(
             use: vals_for_pixel = np.mean(ratios, axis=0)
     """             
     # Read images
-    fg = read_image(fg_file, fg, cv2.IMREAD_GRAYSCALE)
-    fm = read_image(fm_file, fm, cv2.IMREAD_GRAYSCALE)
-    bg = read_image(bg_file, bg, cv2.IMREAD_GRAYSCALE)
-    bm = read_image(bm_file, bm, cv2.IMREAD_GRAYSCALE, True)
+    fg = ih.read_image(fg_file, fg, gray=True, dtype=IMG_DATATYPE)
+    fm = ih.read_image(fm_file, fm, gray=True, dtype=MASK_DATATYPE)
+    bg = ih.read_image(bg_file, bg, gray=True, dtype=IMG_DATATYPE)
+    bm = ih.read_image(bm_file, bm, gray=True, dtype=MASK_DATATYPE, allow_none=True)
+    
+    #ih.debug(fg)
+    #ih.debug(fm)
+    #ih.debug(bg)
+    #ih.debug(bm)
     
     # Width and height of the background image
     h, w = bg.shape[:2]
     
     # Create bm if not exist
     if bm is None:
-        bm = np.full((h, w), 255, dtype=np.uint8)
+        bm = np.full((h, w), MASK_DATA_MAX, dtype=MASK_DATATYPE)
 
     # Convert the images
-    _, fm = cv2.threshold(fm, MASK_THRESHOLD, 255, cv2.THRESH_BINARY)
-    _, bm = cv2.threshold(bm, MASK_THRESHOLD, 255, cv2.THRESH_BINARY)
+    _, fm = cv2.threshold(fm, MASK_THRESHOLD, MASK_DATA_MAX, cv2.THRESH_BINARY)
+    _, bm = cv2.threshold(bm, MASK_THRESHOLD, MASK_DATA_MAX, cv2.THRESH_BINARY)
     
+    # Treat the range of rotation angle of the foreground object
+    if placement_angle_min is None:
+        if placement_angle_max is None:
+            placement_angle_min = 0
+            placement_angle_max = 360
+        else:
+            placement_angle_min = placement_angle_max
+    else:
+        if placement_angle_max is None:
+            placement_angle_max =  placement_angle_min
+                        
     # Prepare GabRat-RR runs
     canvas, crop_fg, crop_mk, crop_mi, points = gabratrr_init(fg, fm)
     ih.imshow_init(canvas) 
@@ -385,8 +452,11 @@ def compute_gabrat_rr(
                 target_pos = (x, y)
                 break
 
-        # Get a target rotation angle (0 - 360 degree)
-        target_angle = random.random() * 360
+        # Get a target rotation angle in degrees
+        target_angle = placement_angle_min + random.random() * (placement_angle_max - placement_angle_min)
+        while target_angle < 0:
+            target_angle += 360
+        target_angle %= 360
    
         # Draw an object onto inverse-transformed background
         gabratrr_draw(canvas, bg, crop_fg, crop_mi, target_angle, target_scale, target_pos)
@@ -432,12 +502,12 @@ def compute_gabrat_rr(
 #  [2] Empilical Imaging (2018) GabRat. 
 #     URL: https://www.empiricalimaging.com/knowledge-base/gabrat/
 def create_gabor_kernels(
-    n_angles   : int,         # must be an even number
-    base_angle : float,       # radian
-    sigma      : float,       # kernel size = 6 * sigma + 1
-    gamma      : float = 1.0, # aspect ratio
-    frequency  : float = 2.0, # frequency = 1 / lambda
-) -> np.ndarray :             # (return) a 3D (N * k * k) numpy array      
+    n_angles     : int,         # must be an even number
+    base_angle_r : float,       # filter angle in RADIAN unit
+    sigma        : float,       # kernel size = 6 * sigma + 1
+    gamma        : float = 1.0, # aspect ratio
+    frequency    : float = 2.0, # frequency = 1 / lambda
+) -> np.ndarray :               # (return) a 3D (N * k * k) numpy array      
     
     # Check if nAngles is even
     if n_angles % 2:
@@ -476,7 +546,7 @@ def create_gabor_kernels(
     
     # Fill N Gabor kernels
     for i in range(0, n_angles):
-        theta = base_angle + step_angle * i
+        theta = base_angle_r + step_angle * i
         for y in range(0, kernel_size_y):
             for x in range(0, kernel_size_x):
                 xprime = (x-cx) * math.cos(theta) + (y-cy) * math.sin(theta)
@@ -489,9 +559,10 @@ def create_gabor_kernels(
     return kernels
 
 
-########################################################################
+###############################################################################
 # Overlay GabRat signals onto the original image
-#
+# *this routine ignores the IMG_DATATYPE setting: always use np.float32 for
+#  internal calculations and output a np.uint8 color image. 
 def overlay_gabrat_signals(
     img: np.ndarray,     # Original color/grayscale image
     points: np.ndarray,  # Array of (x, y): points[i, 0] is the x coordinate of i-th point
@@ -507,6 +578,11 @@ def overlay_gabrat_signals(
     # Assume img is your original grayscale image (H, W)
     # pts is (N, 2) array of coordinates (x, y)
     # val is (N, ) array of intensity values
+
+    # Convert the original image into uint8 because the following code 
+    # assumes the input is always uint8
+    if img.dtype != np.uint8:
+        img = ih.convertto(img, np.uint8, auto_range=True)
 
     # Create a blank black image with the same size
     h, w = img.shape[:2]
@@ -610,34 +686,45 @@ def gabratrr_init(foreground, mask, canvas_width = None, canvas_height = None):
         shape = (canvas_height, canvas_width, channels)
     else:
         shape = (canvas_height, canvas_width)
-    depth = foreground.dtype  # Color depth (e.g., uint8)
     
     # Extend the foreground and mask image to match the cropped background
-    canvas = np.zeros(shape, dtype=depth)
+    canvas = np.zeros(shape, dtype=foreground.dtype)
     crop_fg = np.zeros_like(canvas)
     crop_mi = np.zeros_like(canvas)
     offx = (canvas_width - fg_w) // 2
     offy = (canvas_height - fg_h) // 2
     
+    # Note that mask may have different data type (MASK_DATATYPE) than forfeground.
+    # Therefore, prepare an internal mask image with the same data type as foreground.
+    mask_cvtype = ih.convertto(mask, foreground.dtype)
+    
     # Crop the image and mask.
     if len(canvas.shape) == 2:
         crop_fg[offy:offy+fg_h, offx:offx+fg_w] = foreground
-        crop_mi[offy:offy+fg_h, offx:offx+fg_w] = mask # mask is always a grayscale
+        crop_mi[offy:offy+fg_h, offx:offx+fg_w] = mask_cvtype # mask is always a grayscale
         crop_mk = crop_mi.copy()
     else:
         crop_fg[offy:offy+fg_h, offx:offx+fg_w] = foreground
-        crop_mi[offy:offy+fg_h, offx:offx+fg_w] = mask[:,:,None] # convert to 3 ch color image    
+        crop_mi[offy:offy+fg_h, offx:offx+fg_w] = mask_cvtype[:,:,None] # convert to 3 ch color image    
         crop_mk = crop_mi.copy()[:, :, 0].squeeze() # Use only blue channel to make grayscale
     
     # Paint the outside area in black and inverse the mask 
     np.bitwise_and(crop_fg, crop_mi, out=crop_fg)
     np.bitwise_not(crop_mi, out=crop_mi)
     
+    # Convert crop_mk to MASK_DATATYPE (uint8) since cv2.findContours() does not accept other types
+    crop_mk_uint8 = ih.convertto(crop_mk, MASK_DATATYPE, auto_range=True)
+    
     # Obtain contour points (2D numpy array, where points[i, 0] indicates x coordinate of i-th point)
-    contours, _ = cv2.findContours(crop_mk, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    contours, _ = cv2.findContours(crop_mk_uint8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     points = np.vstack(contours)
     points = points.squeeze()
-
+    
+    #ih.debug(canvas)
+    #ih.debug(crop_fg)
+    #ih.debug(crop_mk)
+    #ih.debug(crop_mi)
+   
     return canvas, crop_fg, crop_mk, crop_mi, points
 
     
@@ -654,12 +741,20 @@ def gabratrr_draw(canvas, background, crop_fg, crop_mi, angle, scale, center):
     M = cv2.getRotationMatrix2D(center, -angle, 1/scale)
     M[0, 2] -= center[0] - width // 2
     M[1, 2] -= center[1] - height // 2
-    cv2.warpAffine(background, M, (width, height), flags=cv2.INTER_LINEAR, dst=canvas)
     
+    # cv2.warpAffine() can deal uint8 and floating types but cannot use uint16 correctly. 
+    # Therefore, uint16 image should be casted to float32
+    if background.dtype != np.uint16:
+        cv2.warpAffine(background, M, (width, height), flags=cv2.INTER_LINEAR, dst=canvas)
+    else:
+        bg2 = ih.convertto(background, np.float32, auto_range=True)
+        ca2 = cv2.warpAffine(bg2, M, (width, height), flags=cv2.INTER_LINEAR)
+        canvas[:] = ih.convertto(ca2, canvas.dtype, auto_range=True)
+
     # Overlay
     np.bitwise_and(canvas, crop_mi, out=canvas)
     np.bitwise_xor(canvas, crop_fg, out=canvas)
-        
+    
     return canvas
 
     
@@ -677,6 +772,8 @@ def overlay_images(background, foreground, mask, angle, scale, center, dst=None)
     scale: Scaling factor (e.g., 1.0 for original size)
     center: (x, y) tuple where the foreground center should land on the background
     """
+    raise ValueError #do not support this function
+    
     bg_h, bg_w = background.shape[:2]
     fg_h, fg_w = foreground.shape[:2]
     
@@ -717,6 +814,7 @@ def overlay_images(background, foreground, mask, angle, scale, center, dst=None)
 ###########################################################################################
 # Overlay foreground obj with inversely transformed background (similar as GsabRat-RR)
 def overlay_images_inverse_background(background, foreground, mask, angle, scale, center):
+    raise ValueError #do not support this function
 
     # Sizes of foreground and background images
     bg_h, bg_w = np.array(background.shape[:2])
@@ -745,30 +843,6 @@ def overlay_images_inverse_background(background, foreground, mask, angle, scale
     np.bitwise_xor(canvas, crop_fg, out=canvas)
         
     return canvas
-
-
-################################################################
-# Read image or create new
-def read_image(file, img, imgtype, allow_none=False):
-    if img is None:
-        if file is not None:
-            img = cv2.imread(file, imgtype)
-    elif file is not None:
-        print(f"Ignoring img_file={file} as img is specified")
-
-    if img is None:
-        if not allow_none:
-            raise ValueError(f"Neither the image object ({img}) nor the file ({file}) exists")
-    
-    if img is not None:
-        match len(img.shape):
-            case 2:
-                if imgtype == cv2.IMREAD_COLOR:
-                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-            case 3:
-                if imgtype == cv2.IMREAD_GRAYSCALE:
-                    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    return img
 
 
 ################################################################
