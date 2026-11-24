@@ -4,7 +4,7 @@ Python implement for computations of the legacy GabRat and GabRat-R/GabRat-RR
 
 ## Requirements
 
-- Python 3.1+
+- Python 3.4+
 
 ## Package requirements
 
